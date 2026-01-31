@@ -34,6 +34,55 @@ console.log("Validating booking request:", req.body);
     next();
 }
 
+
+
+function validateMakePaymentRequest(req, res, next) {
+
+    // 1️⃣ Idempotency key is mandatory for payments
+    const idempotencyKey = req.headers['x-idempotency-key'];
+    if (!idempotencyKey) {
+        ErrorResponse.message = 'Something went wrong while making payment';
+        ErrorResponse.error = new AppError(
+            ['Idempotency key is missing in request headers'],
+            StatusCodes.BAD_REQUEST
+        );
+        return res.status(StatusCodes.BAD_REQUEST).json(ErrorResponse);
+    }
+
+    // 2️⃣ bookingId is required
+    if (!req.body.bookingId) {
+        ErrorResponse.message = 'Something went wrong while making payment';
+        ErrorResponse.error = new AppError(
+            ['bookingId not found in request body'],
+            StatusCodes.BAD_REQUEST
+        );
+        return res.status(StatusCodes.BAD_REQUEST).json(ErrorResponse);
+    }
+
+    // 3️⃣ userId is required
+    if (!req.body.userId) {
+        ErrorResponse.message = 'Something went wrong while making payment';
+        ErrorResponse.error = new AppError(
+            ['userId not found in request body'],
+            StatusCodes.BAD_REQUEST
+        );
+        return res.status(StatusCodes.BAD_REQUEST).json(ErrorResponse);
+    }
+
+    // 4️⃣ totalCost is required
+    if (!req.body.totalCost) {
+        ErrorResponse.message = 'Something went wrong while making payment';
+        ErrorResponse.error = new AppError(
+            ['totalCost not found in request body'],
+            StatusCodes.BAD_REQUEST
+        );
+        return res.status(StatusCodes.BAD_REQUEST).json(ErrorResponse);
+    }
+
+    next();
+}
+
 module.exports = {
-    validateCreateBookingRequest
+    validateCreateBookingRequest,
+    validateMakePaymentRequest
 };
