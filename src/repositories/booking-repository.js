@@ -34,7 +34,24 @@ class BookingRepository extends CrudRepository {
         return response;
     }
 
-    //
+    // Use for Cron jobs
+    async  cancelOldBooking(expiryTime) {
+        const response = await Booking.update(
+            { status: CANCELLED },
+            {
+                where: {
+                    status: PENDING,           // ONLY pending bookings
+                    createdAt: {
+                        [Op.lt]: expiryTime
+                    }
+                },
+                returning: true
+            }
+        );
+
+        // return cancelled bookings (for event emission)
+        return response;
+    }
 
 }
 

@@ -271,8 +271,22 @@ async function cancelBooking(bookingId) {
     }
 }
 
+//Use for Cron jobs.
+async function cancelOldBookings() {
+    try {
+          const PAYMENT_WINDOW = 5 * 60 * 1000; // 5 minutes
+        const expiryTime = new Date(Date.now() - PAYMENT_WINDOW);
+        const response = await bookingRepository.cancelOldBooking(expiryTime);
+        return response;
+    } catch(error) {
+        throw error;
+    }
+}
+
+
 module.exports = {
     createBooking,
     makePayment,
-    cancelBooking
+    cancelBooking,
+    cancelOldBookings
 };
