@@ -40,7 +40,7 @@ class BookingRepository extends CrudRepository {
             { status: CANCELLED },
             {
                 where: {
-                    status: PENDING,           // ONLY pending bookings
+                    status: INITIATED,           // ONLY pending bookings
                     createdAt: {
                         [Op.lt]: expiryTime
                     }

@@ -34,8 +34,7 @@ async function createBooking(data) {
                 {
                     ...data,
                     totalCost,
-                    status: PENDING
-                },
+                    status: INITIATED                },
                 transaction
             );
 
@@ -97,9 +96,9 @@ async function makePayment(data) {
         );
 
         // 2️⃣ Allow payment ONLY in PENDING state
-        if (bookingDetails.status !== PENDING) {
+        if (bookingDetails.status !== INITIATED) {
             throw new AppError(
-                "Payment allowed only for pending bookings",
+                "Payment allowed only for initiated bookings",
                 StatusCodes.BAD_REQUEST
             );
         }
@@ -143,7 +142,7 @@ async function makePayment(data) {
         // 6️⃣ Mark booking as BOOKED
         const booking = await bookingRepository.update(
             data.bookingId,
-            { status: BOOKED },
+            { status: PENDING },
             transaction
         );
 
@@ -237,10 +236,10 @@ async function cancelBooking(bookingId) {
             return true;
         }
 
-        // 3️⃣ Allow cancellation ONLY from PENDING
-        if (bookingDetails.status !== PENDING) {
+        // 3️⃣ Allow cancellation ONLY from INITIATED
+        if (bookingDetails.status !== INITIATED) {
             throw new AppError(
-                "Only pending bookings can be cancelled",
+                "Only initiated bookings can be cancelled",
                 StatusCodes.BAD_REQUEST
             );
         }
