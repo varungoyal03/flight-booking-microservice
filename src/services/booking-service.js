@@ -2,7 +2,7 @@ const axios = require('axios');
 const { Enums } = require('../utils/common');
 const { BOOKED, CANCELLED, INITIATED, PENDING } = Enums.BOOKING_STATUS;
 const { BookingRepository } = require('../repositories');
-const { ServerConfig } = require('../config/')
+const { ServerConfig,QueueConfig } = require('../config/')
 const db = require('../models');
 const AppError = require('../utils/errors/app-error');
 const { StatusCodes } = require('http-status-codes');
@@ -127,7 +127,7 @@ async function makePayment(data) {
         // 4️⃣ Validate amount
         if (bookingDetails.totalCost !== (+data.totalCost) ) {
             throw new AppError(
-                `Amount mismatch.correct amount is ${data.totalCost}`,
+                `Amount mismatch.correct amount is ${bookingDetails.totalCost}`,
                 StatusCodes.BAD_REQUEST
             );
         }
@@ -151,11 +151,11 @@ async function makePayment(data) {
         await transaction.commit();
 
         // 8️⃣ Fire async notification (non-blocking)
-        // Queue.sendData({
-        //     recepientEmail: bookingDetails.userEmail,
-        //     subject: "Flight booked",
-        //     text: `Your booking ${booking.id} is confirmed`
-        // });
+        QueueConfig.sendData({
+            recepientEmail: "varungoyal01.dev@gmail.com",
+            subject: "Flight booked",
+            text: `Your booking ${bookingDetails.id} is confirmed`
+        });
 
         return booking;
 
@@ -164,6 +164,7 @@ async function makePayment(data) {
         throw error;
     }
 }
+
 
 
 // async function makePayment(data) {
@@ -262,6 +263,8 @@ async function cancelBooking(bookingId) {
         //         seats: bookingDetails.noOfSeats
         //     }
         // });
+
+        
 
         return true;
 
