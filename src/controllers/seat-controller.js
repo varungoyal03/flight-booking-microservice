@@ -1,9 +1,21 @@
 
 const { StatusCodes } = require('http-status-codes');
 const { SuccessResponse, ErrorResponse } = require('../utils/common');
-const { seatBooking } = require('../services/seatBooking-service');
+const { SeatBookingService } = require('../services');
 
 const inMemBookingMap = new Map(); // bookingId -> true (in progress or done)
+
+
+async function getSeatMap(req, res) {
+    try {
+        const response = await SeatBookingService.getSeatMap(req.params.id);
+        SuccessResponse.data = response;
+        return res.status(StatusCodes.OK).json(SuccessResponse);
+    } catch (error) {
+        ErrorResponse.error = error;
+        return res.status(error.statusCode || 500).json(ErrorResponse);
+    }
+}
 
 async function bookSeats(req, res) {
 	const bookingId = req.body.bookingId;
@@ -14,7 +26,7 @@ async function bookSeats(req, res) {
 			return res.status(StatusCodes.ACCEPTED).json(SuccessResponse);
 		}
 
-		const result = await seatBooking({
+		const result = await SeatBookingService.seatBooking({
 			bookingId: bookingId,
 			seats: req.body.seats
 		});
@@ -29,5 +41,6 @@ async function bookSeats(req, res) {
 }
 
 module.exports = {
-	bookSeats
+	bookSeats,
+    getSeatMap
 };

@@ -1,6 +1,7 @@
-
+const axios = require('axios');
 const db = require('../models');
 const {BookingRepository,SeatBookingRepository}= require('../repositories');
+const { ServerConfig } = require('../config');
 const AppError = require('../utils/errors/app-error');
 const { StatusCodes } = require('http-status-codes');
 const { Enums } = require('../utils/common');
@@ -9,10 +10,42 @@ const { BOOKED, CANCELLED, INITIATED, PENDING } = Enums.BOOKING_STATUS;
 const bookingRepo = new BookingRepository();
 const seatBookingRepo = new SeatBookingRepository();
 
+// 1. READ: Get Real-Time Seat Map
+async function getSeatMap(flightId) {
+    try {
+        // Step A: Fetch Physical Layout from Flight Service
+        const flightServiceUrl = `${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${flightId}/seats`;
+        const response = await axios.get(flightServiceUrl);
+        const airplaneSeats = response.data.data; 
+
+        // Step B: Fetch Occupied Seats from Local DB
+        const occupiedSeats = await seatBookingRepo.getOccupiedSeats(flightId);
+        const occupiedSeatIds = new Set(occupiedSeats.map(s => s.seatId));
+
+        // Step C: Merge
+        const seatMap = airplaneSeats.map(seat => {
+            return {
+                seatId: seat.id,
+                row: seat.row,
+                col: seat.col,
+                type: seat.type,
+                status: occupiedSeatIds.has(seat.id) ? 'BOOKED' : 'AVAILABLE'
+            };
+        });
+
+        return seatMap;
+
+    } catch (error) {
+        console.error("Seat Map Error:", error);
+        throw new AppError('Cannot fetch seat map', StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+}
+
 // data : {
 //     bookingId,
 //     seats
 // }
+
 
 
 async function seatBooking(data) {
@@ -83,6 +116,7 @@ async function seatBooking(data) {
 
 module.exports={
     seatBooking,
+    getSeatMap
 
 }
 
