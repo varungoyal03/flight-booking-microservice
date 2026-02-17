@@ -36,21 +36,28 @@ class BookingRepository extends CrudRepository {
 
     // Use for Cron jobs
     async  cancelOldBooking(expiryTime) {
-        const response = await Booking.update(
+        // 1. Find bookings to cancel
+        const bookings = await Booking.findAll({
+            where: {
+                status: INITIATED,
+                createdAt: { [Op.lt]: expiryTime }
+            }
+        });
+
+        // 2. Cancel them
+        const [affectedCount] = await Booking.update(
             { status: CANCELLED },
             {
                 where: {
-                    status: INITIATED,           // ONLY pending bookings
-                    createdAt: {
-                        [Op.lt]: expiryTime
-                    }
-                },
-                returning: true
+                    status: INITIATED,
+                    createdAt: { [Op.lt]: expiryTime }
+                }
             }
         );
 
-        // return cancelled bookings (for event emission)
-        return response;
+        // 3. Return count and affected bookings
+        console.log(`Cancelled ${affectedCount} bookings.`, bookings);
+        return [affectedCount, bookings];
     }
 
 }

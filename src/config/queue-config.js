@@ -11,16 +11,16 @@ async function connectQueue() {
         // setInterval(() => {
         //     channel.sendToQueue("noti-queue", Buffer.from("Something to do " + Date.now()));
         // }, 5000);
+        await channel.assertQueue('seat-release-queue'); // NEW queue for seat release
     } catch (error) {
         console.log(error);
     }
 }
 
-async function sendData(data) {
+async function sendData(queueName, data) {
     try {
-        console.log("Sending data to queue + ", Date.now());
-        await channel.sendToQueue("noti-queue", Buffer.from(JSON.stringify(data)));
-
+        console.log(`Sending data to queue ${queueName} at `, Date.now());
+        await channel.sendToQueue(queueName, Buffer.from(JSON.stringify(data)));
     } catch (error) {
         console.log(error)
     }
@@ -29,5 +29,4 @@ async function sendData(data) {
 module.exports = {
     connectQueue,
     sendData,
-    
 }

@@ -116,7 +116,7 @@ async function makePayment(data) {
                 transaction
             );
 
-            // TODO: publish event -> Flight service releases seats
+    
             throw new AppError(
                 "Payment window expired",
                 StatusCodes.BAD_REQUEST
@@ -150,7 +150,7 @@ async function makePayment(data) {
         await transaction.commit();
 
         // 8️⃣ Fire async notification (non-blocking)
-        QueueConfig.sendData({
+        QueueConfig.sendData('noti-queue', {
             recepientEmail: "varungoyal01.dev@gmail.com",
             subject: "Flight booked",
             text: `Your booking ${bookingDetails.id} is confirmed`
@@ -255,13 +255,13 @@ async function cancelBooking(bookingId) {
         await transaction.commit();
 
         // 6️⃣ Publish event to release seats (async, decoupled)
-        // Queue.sendData({
-        //     type: "RELEASE_SEATS",
-        //     data: {
-        //         flightId: bookingDetails.flightId,
-        //         seats: bookingDetails.noOfSeats
-        //     }
-        // });
+        QueueConfig.sendData('seat-release-queue', {
+            type: "RELEASE_SEATS",
+            data: {
+                flightId: bookingDetails.flightId,
+                seats: bookingDetails.noOfSeats
+            }
+        });
 
         
 
@@ -276,10 +276,24 @@ async function cancelBooking(bookingId) {
 //Use for Cron jobs.
 async function cancelOldBookings() {
     try {
-          const PAYMENT_WINDOW = 5 * 60 * 1000; // 5 minutes
+        const PAYMENT_WINDOW = 5* 60 * 1000; // 5 minutes
         const expiryTime = new Date(Date.now() - PAYMENT_WINDOW);
-        const response = await bookingRepository.cancelOldBooking(expiryTime);
-        return response;
+        const [affectedCount, affectedRows] = await bookingRepository.cancelOldBooking(expiryTime);
+        if (affectedRows && affectedRows.length > 0) {
+            console.log(`[CANCEL_OLD_BOOKINGS] Cancelled ${affectedCount} bookings that were older than ${expiryTime.toISOString()}`);
+            affectedRows.forEach(booking => {
+                // Release seats for each cancelled booking
+                QueueConfig.sendData('seat-release-queue', {
+                    type: "RELEASE_SEATS",
+                    data: {
+                        flightId: booking.flightId,
+                        seats: booking.noOfSeats
+                    }
+                });
+                console.log(`[CANCEL_OLD_BOOKINGS] Released seats for bookingId=${booking.id}, flightId=${booking.flightId}, seats=${booking.noOfSeats}`);
+            });
+        }
+        return [affectedCount, affectedRows];
     } catch(error) {
         throw error;
     }
