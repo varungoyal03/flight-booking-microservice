@@ -44,11 +44,11 @@ async function createBooking(data) {
         } catch (error) {
             await transaction.rollback();
 
-            // OPTIONAL: compensate seats
-            await axios.patch(
-                `${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}/seats`,
-                { seats: data.noOfSeats, inc: true }
-            );
+            //  compensate seats
+            await QueueConfig.sendData('seat-release-queue', {
+                    type: "RELEASE_SEATS",
+                    data: { flightId: data.flightId, seats: data.noOfSeats }
+                    });      
 
             throw error;
         }
