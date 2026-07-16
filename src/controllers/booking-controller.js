@@ -31,37 +31,79 @@ async function createBooking(req, res) {
     }
 }
 
+
 async function makePayment(req, res) {
     try {
         const idempotencyKey = req.headers['x-idempotency-key'];
-
         if(!idempotencyKey) {
             return res.status(StatusCodes.BAD_REQUEST).json({message: 'Idempotency key is missing'});
         }
 
-        if(inMemDb[idempotencyKey]) {
-            return res.status(StatusCodes.BAD_REQUEST).json({message: 'Cannot retry on a successful payment'});
+        // 1. THE GUARD (Check and Lock)
+        if (inMemDb[idempotencyKey]) {
+            const cache = inMemDb[idempotencyKey];
+            
+            // If another thread is currently processing this exact key:
+            if (cache.status === 'PROCESSING') {
+                return res.status(StatusCodes.CONFLICT).json({ 
+                    message: 'Payment is currently being processed. Please wait.' 
+                });
+            }
+            // If the payment already succeeded previously, return the exact same cached response:
+            if (cache.status === 'SUCCESS') {
+                const enrichedResponse = {
+                ...cache.response,
+                message: 'Successfully completed the request (Served from Idempotency Cache)',
+                meta: {
+                    isCached: true,
+                    note: "This payment was already processed. No new database transaction occurred."
+                }  };
+
+                return res.status(StatusCodes.OK).json(enrichedResponse);
+
+          
+
+
+            }
         }
 
-        const response = await BookingService.makePayment({
-            totalCost : req.body.totalCost,
-            userId: req.body.userId,
-            bookingId: req.body.bookingId
-        });
+        // Atomically claim the lock
+        inMemDb[idempotencyKey] = { status: 'PROCESSING' };
 
-        inMemDb[idempotencyKey] = idempotencyKey;
+        try {
+            // 2. THE PROCESS (Side Effect)
+            const response = await BookingService.makePayment({
+                totalCost : req.body.totalCost,
+                userId: req.body.userId,
+                bookingId: req.body.bookingId
+            });
 
-        SuccessResponse.data = response;
-        return res.status(StatusCodes.OK).json(SuccessResponse);
+            // Prepare the response
+            const finalResponse = { ...SuccessResponse, data: response };
+
+            // 3. THE PERSIST (Save Result)
+            inMemDb[idempotencyKey] = { 
+                status: 'SUCCESS', 
+                response: finalResponse 
+            };
+
+            return res.status(StatusCodes.OK).json(finalResponse);
+
+        } catch (paymentError) {
+            // CRITICAL: If processing fails, release the lock so the user can try again!
+            delete inMemDb[idempotencyKey];
+            throw paymentError; // Pass down to the outer catch block
+        }
 
     } catch (error) {
         ErrorResponse.error = error;
-        return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(ErrorResponse);
+        return res.status(error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR).json(ErrorResponse);
     }
 }
-
 
 module.exports = {
     createBooking,
     makePayment
 };
+
+

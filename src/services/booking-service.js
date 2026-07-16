@@ -60,7 +60,7 @@ async function createBooking(data) {
 
 
 // async function createBooking(data) {
-   
+   //old code
 //     try {
     
 //         const flight = await axios.get(`${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}`);
@@ -110,11 +110,11 @@ async function makePayment(data) {
 
         if (currentTime - bookingTime > PAYMENT_WINDOW) {
             // Mark booking cancelled (same transaction)
-            await bookingRepository.update(
-                data.bookingId,
-                { status: CANCELLED },
-                transaction
-            );
+            // await bookingRepository.update(
+            //     data.bookingId,
+            //     { status: CANCELLED },
+            //     transaction
+            // );
 
     
             throw new AppError(
